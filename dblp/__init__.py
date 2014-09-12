@@ -22,7 +22,7 @@ class LazyAPIData(object):
             if self.data is None:
                 self.load_data()
             return self.data[key]
-        raise AttributeError,key
+        raise AttributeError(key)
 
     def load_data(self):
         pass
@@ -75,9 +75,9 @@ class Publication(LazyAPIData):
         self.xml = xml
 
         publication = xmltodict.parse(self.xml)['dblp']
-        tempdict = publication[publication.keys()[0]]
+        tempdict = publication[list(publication.keys())[0]]
         data = {
-            'type': publication.keys()[0],
+            'type': list(publication.keys())[0],
             'key': first_or_none(tempdict, '@key'),
             'mdate': first_or_none(tempdict, '@mdate'),
             'authors': tempdict['author'],
