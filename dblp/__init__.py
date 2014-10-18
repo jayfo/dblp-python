@@ -1,4 +1,3 @@
-# import dblp
 import xmltodict
 import requests
 from collections import namedtuple
@@ -73,6 +72,12 @@ class Publication(LazyAPIData):
                                            'volume', 'number', 'chapter', 'pages', 'ee', 'isbn', 'url',
                                            'booktitle', 'crossref', 'publisher', 'school', 'citations',
                                            'series', 'key'])
+
+    def __eq__(self, other):
+        return self.key == other.key
+
+    def __ne__(self, other):
+        return not self.__eq__(self, other)
 
     def load_data(self):
         resp = requests.get(DBLP_PUBLICATION_URL.format(key=self.key))
