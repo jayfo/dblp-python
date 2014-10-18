@@ -1,18 +1,21 @@
-# import dblp
 import xmltodict
 import requests
-from collections import namedtuple
-# from lxml import etree
 
-DBLP_BASE_URL = 'http://dblp.uni-trier.de/'
-DBLP_AUTHOR_SEARCH_URL = DBLP_BASE_URL + 'search/author'
+_DBLP_BASE_URL = 'http://dblp.uni-trier.de/'
+_DBLP_AUTHOR_SEARCH_URL = _DBLP_BASE_URL + 'search/author'
 
-DBLP_PERSON_URL = DBLP_BASE_URL + 'pers/xk/{urlpt}'
-DBLP_PUBLICATION_URL = DBLP_BASE_URL + 'rec/bibtex/{key}.xml'
+_DBLP_PERSON_URL = _DBLP_BASE_URL + 'pers/xk/{urlpt}'
+_DBLP_PUBLICATION_URL = _DBLP_BASE_URL + 'rec/bibtex/{key}.xml'
 
 
-class LazyAPIData(object):
+def _first_or_none(pdict, name):
+    try:
+        return pdict[name]
+    except KeyError:
+        pass
 
+
+class _LazyAPIData(object):
     def __init__(self, lazy_attrs):
         self.lazy_attrs = set(lazy_attrs)
         self.data = None
@@ -28,94 +31,97 @@ class LazyAPIData(object):
         pass
 
 
-class Author(LazyAPIData):
-
+class Author(_LazyAPIData):
     def __init__(self, urlpt):
         self.urlpt = urlpt
         self.xml = None
-        super(Author, self).__init__(['name', 'publications', 'homepages',
-                                      'homonyms', 'dict'])
+        super(Author, self).__init__(
+            ['name', 'publications', 'homepages', 'homonyms', 'dict']
+        )
+
+    def __eq__(self, other):
+        return self.urlpt == other.urlpt
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def load_data(self):
-        resp = requests.get(DBLP_PERSON_URL.format(urlpt=self.urlpt))
+        resp = requests.get(_DBLP_PERSON_URL.format(urlpt=self.urlpt))
         xml = resp.content
         self.xml = xml
 
-        tempdict = xmltodict.parse(self.xml)
+        temp_dict = xmltodict.parse(self.xml)
+        temp_person_record = temp_dict['dblpperson']['dblpkey'][0]
+        temp_pubs = temp_dict['dblpperson']['dblpkey'][1:len(temp_dict['dblpperson']['dblpkey'])]
+
         data = {
-            'name': tempdict['dblpperson']['@name'],
-            'publications': [Publication(k) for k in tempdict['dblpperson']['dblpkey'][1:len(tempdict['dblpperson']['dblpkey'])]],
-            'homepages': tempdict['dblpperson']['dblpkey'][0]['#text'],
-            'homonyms': first_or_none(tempdict['dblpperson'], 'homonyms')
+            'name': temp_dict['dblpperson']['@name'],
+            'publications': [Publication(key) for key in temp_pubs],
+            'homepages': temp_person_record['#text'],
+            'homonyms': _first_or_none(temp_dict['dblpperson'], 'homonyms')
         }
         self.data = data
 
 
-def first_or_none(pdict, name):
-    try:
-        return pdict[name]
-    except KeyError:
-        pass
-
-
-class Publication(LazyAPIData):
-
+class Publication(_LazyAPIData):
     def __init__(self, key):
         self.key = key
         self.xml = None
-        super(Publication, self).__init__(['type', 'sub_type', 'mdate',
-                                           'authors', 'editors', 'title', 'year', 'month', 'journal',
-                                           'volume', 'number', 'chapter', 'pages', 'ee', 'isbn', 'url',
-                                           'booktitle', 'crossref', 'publisher', 'school', 'citations',
-                                           'series', 'key'])
+        super(Publication, self).__init__(
+            [
+                'type', 'sub_type', 'mdate',
+                'authors', 'editors', 'title', 'year', 'month', 'journal',
+                'volume', 'number', 'chapter', 'pages', 'ee', 'isbn', 'url',
+                'booktitle', 'crossref', 'publisher', 'school', 'citations',
+                'series', 'key'
+            ]
+        )
+
+    def __eq__(self, other):
+        return self.key == other.key
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def load_data(self):
-        resp = requests.get(DBLP_PUBLICATION_URL.format(key=self.key))
+        resp = requests.get(_DBLP_PUBLICATION_URL.format(key=self.key))
         xml = resp.content
         self.xml = xml
 
         publication = xmltodict.parse(self.xml)['dblp']
-        tempdict = publication[list(publication.keys())[0]]
+        type = list(publication.keys())[0]
+        tempdict = publication[type]
         data = {
             'type': list(publication.keys())[0],
-            'key': first_or_none(tempdict, '@key'),
-            'mdate': first_or_none(tempdict, '@mdate'),
+            'key': _first_or_none(tempdict, '@key'),
+            'mdate': _first_or_none(tempdict, '@mdate'),
             'authors': tempdict['author'],
-            'editors': first_or_none(tempdict, 'editor'),
-            'title': first_or_none(tempdict, 'title'),
-            'year': int(first_or_none(tempdict, 'year')),
-            'month': first_or_none(tempdict, 'month'),
-            'journal': first_or_none(tempdict, 'journal'),
-            'volume': first_or_none(tempdict, 'volume'),
-            'number': first_or_none(tempdict, 'number'),
-            'chapter': first_or_none(tempdict, 'chapter'),
-            'pages': first_or_none(tempdict, 'pages'),
-            'ee': first_or_none(tempdict, 'ee'),
-            'isbn': first_or_none(tempdict, 'isbn'),
-            'url': first_or_none(tempdict, 'url'),
-            'booktitle': first_or_none(tempdict, 'booktitle'),
-            'crossref': first_or_none(tempdict, 'crossref'),
-            'publisher': first_or_none(tempdict, 'publisher'),
-            'school': first_or_none(tempdict, 'school')
+            'editors': _first_or_none(tempdict, 'editor'),
+            'title': _first_or_none(tempdict, 'title'),
+            'year': int(_first_or_none(tempdict, 'year')),
+            'month': _first_or_none(tempdict, 'month'),
+            'journal': _first_or_none(tempdict, 'journal'),
+            'volume': _first_or_none(tempdict, 'volume'),
+            'number': _first_or_none(tempdict, 'number'),
+            'chapter': _first_or_none(tempdict, 'chapter'),
+            'pages': _first_or_none(tempdict, 'pages'),
+            'ee': _first_or_none(tempdict, 'ee'),
+            'isbn': _first_or_none(tempdict, 'isbn'),
+            'url': _first_or_none(tempdict, 'url'),
+            'booktitle': _first_or_none(tempdict, 'booktitle'),
+            'crossref': _first_or_none(tempdict, 'crossref'),
+            'publisher': _first_or_none(tempdict, 'publisher'),
+            'school': _first_or_none(tempdict, 'school')
             # 'citations':[Citation(c.text, c.attrib.get('label',None))
             #              for c in publication.xpath('cite') if c.text != '...'],
-            # 'series':first_or_none(Series(s.text, s.attrib.get('href', None))
+            # 'series':_first_or_none(Series(s.text, s.attrib.get('href', None))
             #           for s in publication.xpath('series'))
-
-
-
         }
         self.data = data
 
 
 def search(author_str):
-    resp = requests.get(DBLP_AUTHOR_SEARCH_URL, params={'xauthor': author_str})
-    # TODO error handling
-    # print resp.content
+    resp = requests.get(_DBLP_AUTHOR_SEARCH_URL, params={'xauthor': author_str})
+
     tempdict = xmltodict.parse(resp.content)
-    authors = []
-    for adict in tempdict['authors']['author']:
-        authors.append(Author(adict['@urlpt']))
-    return authors
-    # root = etree.fromstring(resp.content)
-    # return [Author(urlpt) for urlpt in root.xpath('/authors/author/@urlpt')]
+    return [Author(author['@urlpt']) for author in tempdict['authors']['author']]
