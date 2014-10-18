@@ -16,3 +16,9 @@ class Tests(unittest.TestCase):
         self.assertIn(dblp.Publication('conf/chi/AmershiFKT10'), publications)
         self.assertIn(dblp.Publication('conf/uist/AdarDFW08'), publications)
         self.assertIn(dblp.Publication('conf/uist/FogartyFH01'), publications)
+
+    def test_query_publication_data(self) -> None:
+        pub = dblp.Publication('conf/chi/AmershiFKT10')
+        self.assertEquals(pub.authors, ['Saleema Amershi', 'James Fogarty', 'Ashish Kapoor', 'Desney S. Tan'])
+        self.assertEquals(pub.title, 'Examining multiple potential models in end-user interactive concept learning.')
+        self.assertEquals(pub.year, 2010)
