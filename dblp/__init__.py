@@ -29,12 +29,17 @@ class LazyAPIData(object):
 
 
 class Author(LazyAPIData):
-
     def __init__(self, urlpt):
         self.urlpt = urlpt
         self.xml = None
         super(Author, self).__init__(['name', 'publications', 'homepages',
                                       'homonyms', 'dict'])
+
+    def __eq__(self, other):
+        return self.urlpt == other.urlpt
+
+    def __ne__(self, other):
+        return not self.__eq__(self, other)
 
     def load_data(self):
         resp = requests.get(DBLP_PERSON_URL.format(urlpt=self.urlpt))
